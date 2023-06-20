@@ -3,12 +3,13 @@ using ShortLinks.Models;
 using FileShare.Services;
 using MongoDB.Driver;
 using Visus.Cuid;
+using Microsoft.AspNetCore.Mvc.Core;
 
 namespace ShortLinks.Controllers
 {
-    [Route("api/v1/short")]
+    [Route("/")]
     [ApiController]
-    public class LinkController
+    public class LinkController : Controller
     {
         private readonly IMongoClient _client;
         private readonly IMongoDatabase _db;
@@ -25,7 +26,7 @@ namespace ShortLinks.Controllers
             _serverUrl = $"{_httpAccessor.HttpContext!.Request.Scheme}://{_httpAccessor.HttpContext.Request.Host.Value}";
         }
 
-        [HttpPost]
+        [HttpPost("api/v1/short")]
         public async Task<IResult> CreateShortLink(LinkDto createLinkDto)
         {
             byte[] salt = SodiumLibrary.CreateSalt();
@@ -39,7 +40,7 @@ namespace ShortLinks.Controllers
             Link newLink = new Link
             {
                 LinkPath = createLinkDto.LinkPath,
-                ShortLink = _serverUrl + '/' + (new Cuid2(5)).ToString(),
+                ShortLink = new Cuid2(5).ToString(),
                 Salt = salt,
                 PasswordToDel = hashedPassword
             };
@@ -48,31 +49,11 @@ namespace ShortLinks.Controllers
             return Results.Ok(new PublicLinkView
             {
                 LinkPath = newLink.LinkPath,
-                ShortLink = newLink.ShortLink
+                ShortLink = _serverUrl + '/' + newLink.ShortLink
             });
         }
 
-        // [HttpGet("{filename}")]
-        // public IResult GetFile(string fileName)
-        // {
-        //     var fileInfo = _fileProvider.GetFileInfo(fileName);
-        //     if (!fileInfo.Exists) return Results.NotFound();
-
-        //     return Results.File(fileInfo.PhysicalPath!);
-        // }
-
-        // [HttpGet]
-        // public IResult GetAllFiles()
-        // {
-        //     return Results.Ok(new
-        //     {
-        //         Data = _context.Files.ToList(),
-        //         StatusCode = StatusCodes.Status200OK,
-        //         Success = true
-        //     });
-        // }
-
-        [HttpPost("deleteLink")]
+        [HttpPost("api/v1/short/deleteLink")]
         public async Task<IResult> DeleteLink(LinkDto deleteRequest)
         {
             var filter = Builders<Link>.Filter.Eq("LinkPath", deleteRequest.LinkPath);
@@ -87,33 +68,16 @@ namespace ShortLinks.Controllers
             return Results.Ok();
         }
 
-        // public async Task DeleteFileAsync(CustomFile fileToDelete)
-        // {
-        //     using (var transaction = await _context.Database.BeginTransactionAsync())
-        //     {
-        //         try
-        //         {
-        //             File.Delete(fileToDelete.Path);
-        //             _context.Files.Remove(fileToDelete);
-        //             await _context.SaveChangesAsync();
+        [HttpGet("{shortPath}")]
+        public async Task<IResult> RedirectToNativeLink(string shortPath)
+        {
+            var filter = Builders<Link>.Filter.Eq("ShortLink", shortPath);
+            var link = await _collection.Find(filter).SingleOrDefaultAsync();
 
-        //             await transaction.CommitAsync();
-        //         }
-        //         catch (Exception)
-        //         {
-        //             await transaction.RollbackAsync();
-        //         }
-        //     }
-        // }
-
-        // public async Task DeleteFileByTimer(CustomFile fileToDelete)
-        // {
-        //     if (fileToDelete.DelTime <= DateTime.UtcNow)
-        //     {
-        //         if (File.Exists(fileToDelete.Path))
-        //             await DeleteFileAsync(fileToDelete);
-
-        //     }
-        // }
+            if (link == null) return Results.NotFound();
+            
+            Console.WriteLine(link.LinkPath);
+            return Results.Redirect(link.LinkPath);
+        }        
     }
 }
