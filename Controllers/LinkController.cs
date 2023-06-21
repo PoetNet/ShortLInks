@@ -1,9 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using ShortLinks.Models;
 using ShortLinks.Services;
-using FileShare.Services;
-using MongoDB.Driver;
-using Visus.Cuid;
 
 namespace ShortLinks.Controllers
 {
