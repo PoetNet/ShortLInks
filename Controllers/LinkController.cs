@@ -44,7 +44,9 @@ namespace ShortLinks.Controllers
         [HttpGet("{shortPath}")]
         public async Task<IResult> RedirectToNativeLink(string shortPath)
         {
-            return await _linkService.Redirect(shortPath);
+            var result = await _linkService.Redirect(shortPath);
+            if (string.IsNullOrEmpty(result)) return Results.BadRequest();
+            return Results.Redirect(result);
         }        
     }
 }

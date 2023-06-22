@@ -11,7 +11,7 @@ public interface ILinkService
 {
     Task<Link> CreateLink(LinkDto createLinkDto);
     Task<bool> Delete(LinkDto deleteRequest);
-    Task<IResult> Redirect(string shortPath);
+    Task<string> Redirect(string shortPath);
 }
 
 public class LinkService : ILinkService
@@ -70,19 +70,19 @@ public class LinkService : ILinkService
         return true;
     }
 
-    public async Task<IResult> Redirect(string shortPath)
+    public async Task<string> Redirect(string shortPath)
     {
         var redisKey = "link_" + shortPath;
         var cachedLink = _redisCacheService.Get(redisKey);
 
-        if (!string.IsNullOrEmpty(cachedLink)) return Results.Redirect(cachedLink);
+        if (!string.IsNullOrEmpty(cachedLink)) return cachedLink;
 
         var filter = Builders<Link>.Filter.Eq("ShortLink", shortPath);
         var link = await _collection.Find(filter).SingleOrDefaultAsync();
 
-        if (link == null) return Results.NotFound();
+        if (link == null) return string.Empty;
 
         _redisCacheService.Set(redisKey, link.LinkPath, TimeSpan.FromMinutes(10));
-        return Results.Redirect(link.LinkPath);
+        return link.LinkPath;
     }
 }
